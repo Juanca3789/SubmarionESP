@@ -5,6 +5,8 @@
 #include <List.hpp>
 #include <Ticker.h>
 #include <Wire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #define MPU_6050 0x68
 #define pwmpin1 15
 #define pwmpin2 17
@@ -22,6 +24,9 @@
 #define TrigPin 26
 #define EchoPin 25
 #define TDSPin 36
+#define TMPPin 39
+#define PHPin 34
+#define TSSPin 35
 
 class object {
   public:
@@ -102,6 +107,8 @@ bool set_gyro_angles, accCalibOK  = false;
 float acc_X_cal, acc_Y_cal, acc_Z_cal, angulo_pitch_acc, angulo_roll_acc, angulo_pitch, angulo_roll;
 unsigned long int pastMicros = 0, tiempo_ejecucion = 0;
 int velocidad;
+OneWire tempSensor(TMPPin);
+DallasTemperature sensors (&tempSensor);
 
 void writeRegisters();
 void loopPaP(void *parametros);
@@ -123,6 +130,9 @@ void setup() {
   pinMode(SerPin, OUTPUT);
   pinMode(RclkPin, OUTPUT);
   pinMode(SrclkPin, OUTPUT);
+  pinMode(TMPPin, INPUT);
+  pinMode(PHPin, INPUT);
+  pinMode(TSSPin, INPUT);
   writeRegisters();
   motor1.begin();
   motor2.begin();
@@ -135,8 +145,9 @@ void setup() {
   pinMode(EchoPin, INPUT);
   xTaskCreatePinnedToCore(loopPaP, "Movimiento Motor", 1000, NULL, tskIDLE_PRIORITY, &GirarMotorPaP, 0);
   enviarDatos.attach(0.2, funcionEnvio);
-  leerTDS.attach(3, funcionTDS);
-  leerUltrasonico.attach(1.5, funcionUltrasonico);
+  leerTDS.attach(5, funcionTDS);
+  leerUltrasonico.attach(2, funcionUltrasonico);
+  sensors.begin();
   /*
   MPU6050Init();
   for (cal_int = 0; cal_int < 3000 ; cal_int ++) {
@@ -327,6 +338,38 @@ void funcionTDS() {
   val = val / 50;
   if(!colaEnvio.estaLlena()){
     colaEnvio.add("TDS=" + String(val));
+  }
+  val = 0;
+  for(int i = 0; i < 50; i++){
+    val += analogRead(PHPin);
+  }
+  val = val / 50;
+  val = (val * 3.3) / 4096;
+  val = (val * 3) / 2;
+  val = (-10.609 * val) + 39.185;
+  if(!colaEnvio.estaLlena()){
+    colaEnvio.add("PH=" + String(val));
+  }
+  val = 0;
+  for(int i = 0; i < 50; i++){
+    val += analogRead(TSSPin);
+  }
+  val = val / 50;
+  val = (val * 3.3) / 4096;
+  val = (val * 3) / 2;
+  if(val < 2.5){  
+    val = 3000;  
+  }else{  
+    val = (-1120.4 * val * val)+(5742.3*val)-4352.9;   
+  }
+  if(!colaEnvio.estaLlena()){
+    colaEnvio.add("TSS=" + String(val));
+  }
+  val = 0;
+  sensors.requestTemperatures();
+  val = sensors.getTempCByIndex(0);
+  if(!colaEnvio.estaLlena()){
+    colaEnvio.add("TMP=" + String(val));
   }
 }
 
