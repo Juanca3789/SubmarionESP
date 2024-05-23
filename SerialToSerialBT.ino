@@ -10,6 +10,8 @@
 #define pwmpin2 17
 #define pwmPin3 5
 #define pwmPin4 18
+#define pwmpin5 19
+#define pwmpin6 23
 #define SerPin 2
 #define RclkPin 4
 #define SrclkPin 16
@@ -75,15 +77,19 @@ String Cola::remove() {
 TaskHandle_t GirarMotorPaP;
 BluetoothSerial SerialBT;
 int posicionRadar = 0;
-bool registers[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+bool registers[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 int mot1Channel = 0;
 int mot2Channel = 1;
 int mot3Channel = 2;
 int mot4Channel = 3;
+int mot5Channel = 4;
+int mot6Channel = 5;
 Motor motor1(registers[0], registers[1], pwmpin1, mot1Channel);
 Motor motor2(registers[2], registers[3], pwmpin2, mot2Channel);
 Motor motor3(registers[4], registers[5], pwmPin3, mot3Channel);
 Motor motor4(registers[6], registers[7], pwmPin4, mot4Channel);
+Motor motor5(registers[8], registers[9], pwmpin5, mot5Channel);
+Motor motor6(registers[10], registers[11], pwmpin6, mot6Channel);
 PaP motorPaP(PaP1, PaP2, PaP3, PaP4, 0.5);
 List<object> objetosAlrededor;
 Cola colaEnvio = Cola();
@@ -122,6 +128,8 @@ void setup() {
   motor2.begin();
   motor3.begin();
   motor4.begin();
+  motor5.begin();
+  motor6.begin();
   motorPaP.begin();
   pinMode(TrigPin, OUTPUT);
   pinMode(EchoPin, INPUT);
@@ -232,16 +240,32 @@ void loop() {
         motor3.mover(velocidad);
         motor4.mover((velocidad * 50) / 100);
       }
+      else if (rec == 'A') {
+        motor5.setDireccion(1, registers[8], registers[9]);
+        motor6.setDireccion(1, registers[10], registers[11]);
+        writeRegisters();
+        motor5.mover(velocidad);
+        motor6.mover(velocidad);
+      }
+      else if (rec == 'S') {
+        motor5.setDireccion(2, registers[8], registers[9]);
+        motor6.setDireccion(2, registers[10], registers[11]);
+        writeRegisters();
+        motor5.mover(velocidad);
+        motor6.mover(velocidad);
+      }
       else if(rec == 'F'){
         for(
-          int i = motor1.getVelocidad(), j = motor2.getVelocidad(), k = motor3.getVelocidad(), l = motor4.getVelocidad();
-          i >= 0 || j >= 0 || k >= 0 || l >= 0;
-          i--, j--, k--, l--
+          int i = motor1.getVelocidad(), j = motor2.getVelocidad(), k = motor3.getVelocidad(), l = motor4.getVelocidad(), m = motor5.getVelocidad(), o = motor6.getVelocidad();
+          i >= 0 || j >= 0 || k >= 0 || l >= 0 || m >= 0 || o >= 0;
+          i--, j--, k--, l--, m--, o--
         ) {
           if (i >= 0) motor1.mover(i);
           if (j >= 0) motor2.mover(j);
           if (k >= 0) motor3.mover(k);
           if (l >= 0) motor4.mover(l);
+          if (m >= 0) motor5.mover(m);
+          if (o >= 0) motor6.mover(o);
           delayMicroseconds(8);
         }
       }
@@ -279,7 +303,7 @@ void loopPaP(void *parametros){
 //Functions
 void writeRegisters(){
   digitalWrite(RclkPin, LOW);
-  for(int i = 7; i >=  0; i--){
+  for(int i = 15; i >=  0; i--){
     digitalWrite(SrclkPin, LOW); 
     digitalWrite(SerPin, registers[i]);
     digitalWrite(SrclkPin, HIGH);
